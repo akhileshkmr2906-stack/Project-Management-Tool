@@ -67,7 +67,7 @@ function mspdi(p,cx,lvl,D){
   rows.forEach((r,i)=>{const summ=i+1<rows.length&&rows[i+1].L>r.L;let s=r.ES,f=r.EF;if(r.L===5){s=td(r.ps);f=td(r.pf)}
     const days=Math.max(0,Math.round((f-s)/DAY)),fin=days?s+(days-1)*DAY:s,durH=days*8;const ms=days===0;
     let x=`<Task><UID>${r.uid}</UID><ID>${r.uid}</ID><Name>${xe((r.L===4?r.a.id+' ':'')+r.name)}</Name><Type>${summ?1:0}</Type><IsNull>0</IsNull><WBS>${xe(r.wbs)}</WBS><OutlineNumber>${xe(r.wbs.split('.').slice(1).join('.')||'0')}</OutlineNumber><OutlineLevel>${r.L+1}</OutlineLevel>
-<Start>${t8(s)}</Start><Finish>${t17(fin)}</Finish><Duration>PT${durH}H0M0S</Duration><DurationFormat>7</DurationFormat><Milestone>${ms?1:0}</Milestone><Summary>${summ?1:0}</Summary><PercentComplete>${Math.round((r.pct||0)*100)}</PercentComplete>`;
+<Start>${t8(s)}</Start><Finish>${ms?t8(s):t17(fin)}</Finish><Duration>PT${durH}H0M0S</Duration><DurationFormat>7</DurationFormat><Milestone>${ms?1:0}</Milestone><Summary>${summ?1:0}</Summary><PercentComplete>${Math.round((r.pct||0)*100)}</PercentComplete>`;
     if(r.L===4){const a=r.a;if(a.as)x+=`<ActualStart>${t8(td(a.as))}</ActualStart>`;if(a.af&&a.pct>=1)x+=`<ActualFinish>${t17(td(a.af))}</ActualFinish>`;x+=`<Cost>${Math.round(a.cost*1e5)}</Cost>`;}
     if(!summ){x+=`<ConstraintType>4</ConstraintType><ConstraintDate>${t8(s)}</ConstraintDate>`}
     x+=`<Baseline><Number>0</Number><Start>${t8(td(r.ps))}</Start><Finish>${t17(td(r.pf))}</Finish><Duration>PT${Math.max(0,dd(r.pf,r.ps))*8}H0M0S</Duration></Baseline>`;

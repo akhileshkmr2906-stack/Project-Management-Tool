@@ -158,7 +158,7 @@ function compute(p){
   while(q.length){const id=q.shift();order.push(id);(succ[id]||[]).forEach(([s])=>{if(--indeg[s]===0)q.push(s)})}
   const cyc=acts.length-order.length; if(cyc) acts.forEach(a=>{if(!order.includes(a.id))order.push(a.id)});
   const S={};
-  for(const id of order){const a=by[id];const dur=Math.max(1,dd(a.pf,a.ps));let ES,EF,st;
+  for(const id of order){const a=by[id];const dur=a.ms?0:Math.max(1,dd(a.pf,a.ps));let ES,EF,st;
     if(a.pct>=1){ES=td(a.as||a.ps);EF=td(a.af||a.pf);st='done'}
     else if(a.pct>0||a.as){ES=td(a.as||a.ps);const rem=Math.max(1,Math.ceil(dur*(1-(a.pct||0))));EF=a.ff&&td(a.ff)>d0?td(a.ff):d0+rem*DAY;st='wip'}
     else{const fdur=a.fs&&a.ff&&dd(a.ff,a.fs)>0?dd(a.ff,a.fs):dur;let s=Math.max(d0,td(a.fs||a.ps));
@@ -203,7 +203,7 @@ function evm(p,cx,d){const x=d==='O'?{BAC:sum('EPC'.split(''),k=>cx.disc[k].BAC)
   const SPI=x.PV?x.EV/x.PV:NaN,CPI=x.AC?x.EV/x.AC:NaN,EAC=CPI?x.BAC/CPI:NaN;
   return {...x,SV:x.EV-x.PV,CV:x.EV-x.AC,SPI,CPI,EAC,ETC:EAC-x.AC,VAC:x.BAC-EAC,TCPI:(x.BAC-x.EV)/((x.BAC-x.AC)||1)}}
 function statusOf(a,cx){const x=cx.S[a.id];if(x.st==='done')return 'Completed';if(x.st==='wip')return 'In progress';return 'Not started'}
-function stepsOf(a){
+function stepsOf(a){if(a.ms||(a.d==='E'&&!a.steps))return [];
   if(a.d==='P'&&a.steps)return a.steps.map((s,i)=>({name:s[0],ps:i?a.steps[i-1][1]||a.ps:a.ps,pf:s[1]||a.pf,act:s[2],w:MSW[i]}));
   if(a.d==='E'&&a.steps)return [{name:'Preparation & first submission',ps:a.ps,pf:a.steps[0][1]||addD(a.ps,15),act:a.steps[0][2],w:.5},{name:'Review & approval',ps:a.steps[0][1]||a.ps,pf:a.pf,act:a.steps[1][2],w:.5}];
   const n=Math.max(1,dd(a.pf,a.ps));const b1=addD(a.ps,Math.round(n*.1)),b2=addD(a.ps,Math.round(n*.9));

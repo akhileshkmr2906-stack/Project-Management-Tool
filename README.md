@@ -4,7 +4,7 @@ A browser-based project controls tool for EPC (engineering, procurement, constru
 project registration, E/P/C progress updates, discipline and overall status reports, S-curves,
 EVM (SPI/CPI), resource planning, crashing / fast-tracking / smoothing suggestions, L0–L5 schedules
 with Microsoft Project XML export, 2-week / 1-month / 7-week look-aheads, delay analysis and a
-time–chainage line diagram.
+time–chainage line diagram, and auto-scheduling from the PO date to the delivery date.
 
 Live site: https://akhileshkmr2906-stack.github.io/Project-Management-Tool/
 
