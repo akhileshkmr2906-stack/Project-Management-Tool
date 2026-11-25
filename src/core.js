@@ -90,17 +90,17 @@ async function hash(s){
   catch(e){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return 'x'+(h>>>0).toString(16)}
 }
 async function ensureAdmin(){}
-const ORGF=[['name','Organization name',1],['code','Organization code (short, used to sign in)',1],['type','Organization type',0,['EPC contractor','Owner / client','PMC / consultant','Sub-contractor','Vendor','Other']],['address','Registered address'],['city','City'],['state','State'],['country','Country'],['gstin','GSTIN / tax ID'],['email','Contact email'],['phone','Contact phone'],['website','Website']];
+const ORGF=[['name','Organization name',1]];
 const LOGO={};
 function orgLogoHTML(o,size=44){return o?.logo?`<img src="${esc(o.logo)}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:8px;background:#fff;padding:3px;flex:none">`:`<span aria-hidden="true" style="width:${size}px;height:${size}px;border-radius:8px;background:var(--act);color:#04140d;display:inline-grid;place-items:center;font-weight:800;font-size:${Math.round(size*.4)}px;flex:none">${esc((o?.name||'EPC').split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase())}</span>`}
-function logoInput(o,pre){return `<div class="f" style="display:flex;gap:14px;align-items:center;grid-column:1/-1"><span id="${pre}_lp">${orgLogoHTML(o,64)}</span><label class="f" style="flex:1">Organization logo (PNG, JPG or SVG, up to 2 MB)<input type="file" id="${pre}_logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"></label>${o?.logo?`<button type="button" id="${pre}_lx">Remove logo</button>`:''}</div>`}
-function bindLogo(pre,o){const i=$('#'+pre+'_logo');if(!i)return;delete LOGO[pre];
+function logoInput(o,pre){return `<div class="f" style="display:flex;gap:14px;align-items:center;grid-column:1/-1;flex-wrap:wrap"><span id="${pre}_lp">${orgLogoHTML(o,64)}</span><div id="${pre}_lg" style="flex:1 1 100%;order:9"></div><label class="f" style="flex:1">Organization logo (PNG, JPG or SVG, up to 2 MB)<input type="file" id="${pre}_logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"></label>${o?.logo?`<button type="button" id="${pre}_lx">Remove logo</button>`:''}</div>`}
+function bindLogo(pre,o){const i=$('#'+pre+'_logo');if(!i)return;
   i.onchange=()=>{const f=i.files[0];if(!f)return;if(!/^image\//.test(f.type))return toast('Choose an image file');if(f.size>2e6)return toast('Logo must be under 2 MB');
     const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const m=256,s=Math.min(1,m/Math.max(img.width||m,img.height||m)),cv=document.createElement('canvas');cv.width=Math.round((img.width||m)*s);cv.height=Math.round((img.height||m)*s);
       cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);LOGO[pre]=cv.toDataURL('image/png');$('#'+pre+'_lp').innerHTML=orgLogoHTML({logo:LOGO[pre]},64)};img.onerror=()=>toast('Could not read that image');img.src=r.result};r.readAsDataURL(f)};
   const x=$('#'+pre+'_lx');if(x)x.onclick=()=>{LOGO[pre]='';$('#'+pre+'_lp').innerHTML=orgLogoHTML({name:o?.name},64);x.remove()}}
 function orgForm(o={},pre='of'){return `<div class="form">${logoInput(o,pre)}${ORGF.map(([k,l,req,opts])=>opts?`<label class="f">${l}<select id="${pre}_${k}">${opts.map(x=>`<option ${o[k]===x?'selected':''}>${x}</option>`).join('')}</select></label>`:`<label class="f">${l}${req?' *':''}<input id="${pre}_${k}" value="${esc(o[k]||(k==='country'?'India':''))}" ${req?'required':''} ${k==='code'?'autocapitalize="characters" maxlength="16"':''} ${k==='email'?'type="email"':''}></label>`).join('')}</div>`}
-function readOrg(pre='of'){const o={};if(pre in LOGO)o.logo=LOGO[pre];ORGF.forEach(([k])=>o[k]=($('#'+pre+'_'+k)?.value||'').trim());o.code=o.code.toUpperCase().replace(/\s+/g,'');return o}
+function readOrg(pre='of'){const o={};if(pre in LOGO)o.logo=LOGO[pre];ORGF.forEach(([k])=>o[k]=($('#'+pre+'_'+k)?.value||'').trim());return o}
 const LEFT=()=>`<div style="background:var(--rail);color:#e8eeeb;padding:clamp(28px,6vw,72px);display:flex;flex-direction:column;justify-content:center">
    ${DB.org?.logo?`<img src="${esc(DB.org.logo)}" alt="" style="width:96px;height:96px;object-fit:contain;background:#fff;border-radius:14px;padding:8px;margin-bottom:18px">`:''}<div style="font-weight:800;font-size:clamp(32px,5vw,50px);line-height:1.05">${DB.org?.name?esc(DB.org.name):'EPC Project<br>Controls'}</div>
    <p style="color:#9aa8a2;max-width:34ch;font-size:17px">${DB.org?.name?'EPC Project Controls · ':''}Engineering, procurement and construction progress, S-curves, EVM, look-aheads and L0–L5 schedules in one place.</p>
@@ -108,39 +108,61 @@ const LEFT=()=>`<div style="background:var(--rail);color:#e8eeeb;padding:clamp(2
 function shell(){document.querySelector('.app').style.display='none';let w=$('#login');if(!w){w=document.createElement('div');w.id='login';document.body.prepend(w)}return w}
 function enter(x){ME={u:x.u,name:x.name,role:x.role};try{sessionStorage.setItem('epcpm.me',JSON.stringify(ME))}catch(e){}
   $('#login')?.remove();document.querySelector('.app').style.display='';route()}
+/* online logo lookup: Wikidata (logo image, official website) -> Wikimedia Commons / site icon */
+const WD='https://www.wikidata.org/w/api.php?origin=*&format=json&';
+async function findLogos(name){const s=await (await fetch(WD+'action=wbsearchentities&language=en&limit=6&search='+encodeURIComponent(name))).json();
+  const hits=(s.search||[]).slice(0,6);if(!hits.length)return [];
+  const e=(await (await fetch(WD+'action=wbgetentities&props=claims&ids='+hits.map(h=>h.id).join('|'))).json()).entities||{};const out=[];
+  for(const h of hits){const cl=e[h.id]?.claims||{};const logo=cl.P154?.[0]?.mainsnak?.datavalue?.value,site=cl.P856?.[0]?.mainsnak?.datavalue?.value;
+    let host='';try{host=site?new URL(site).hostname:''}catch(x){}
+    const url=logo?'https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(String(logo).replace(/ /g,'_'))+'?width=256':host?'https://www.google.com/s2/favicons?sz=128&domain='+encodeURIComponent(host):'';
+    if(url)out.push({url,label:h.label||name,desc:h.description||host||''})}
+  return out.slice(0,4)}
+function toDataURL(url){return new Promise(res=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>{try{const m=256,s=Math.min(1,m/Math.max(img.naturalWidth||m,img.naturalHeight||m)),cv=document.createElement('canvas');
+  cv.width=Math.max(1,Math.round((img.naturalWidth||m)*s));cv.height=Math.max(1,Math.round((img.naturalHeight||m)*s));cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);res(cv.toDataURL('image/png'))}catch(e){res(url)}};img.onerror=()=>res(url);img.src=url})}
+function logoPicker(pre,getName){const box=$('#'+pre+'_lg');if(!box)return null;let tm,last='';
+  const show=(list,msg)=>{box.innerHTML=`<div class="note" style="margin:0 0 6px">${esc(msg)}</div><div style="display:flex;flex-wrap:wrap;gap:8px">${list.map((x,i)=>`<button type="button" data-lg="${i}" title="${esc(x.desc)}" style="display:flex;gap:8px;align-items:center;max-width:250px;text-align:left;min-height:56px;${x.data&&LOGO[pre]===x.data?'border-color:var(--act);box-shadow:inset 0 0 0 2px var(--act)':''}"><img src="${esc(x.url)}" alt="" style="width:40px;height:40px;object-fit:contain;background:#fff;border-radius:6px"><span style="font-size:13px;line-height:1.25"><b>${esc(x.label)}</b><br><span style="color:var(--mute)">${esc(x.desc.slice(0,48))}</span></span></button>`).join('')}
+    <button type="button" data-lg="none" style="min-height:56px">Use initials</button><label class="btn" style="min-height:56px;display:inline-flex;align-items:center">Upload my own<input type="file" id="${pre}_logo" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden></label></div>`;
+    $$('#'+pre+'_lg [data-lg]').forEach(b=>b.onclick=async()=>{const k=b.dataset.lg;if(k==='none'){LOGO[pre]='';$('#'+pre+'_lp').innerHTML=orgLogoHTML({name:getName()},64);return}
+      const x=list[+k];x.data=x.data||await toDataURL(x.url);LOGO[pre]=x.data;$('#'+pre+'_lp').innerHTML=orgLogoHTML({logo:x.data},64);show(list,msg)});
+    bindLogo(pre,{})};
+  const run=async()=>{if(!box.isConnected)return;const n=(getName()||'').trim();if(n.length<3||n===last)return;last=n;box.innerHTML='<div class="note">Searching online for the logo of “'+esc(n)+'”…</div>';
+    try{const L=await findLogos(n);if(!box.isConnected||(getName()||'').trim()!==n)return;if(L.length){L[0].data=await toDataURL(L[0].url);LOGO[pre]=L[0].data;$('#'+pre+'_lp').innerHTML=orgLogoHTML({logo:L[0].data},64)}
+      show(L,L.length?'Logos found online. The first is selected: pick another if it is not yours.':'No logo found online. Initials will be used; you can upload one.')}
+    catch(e){show([],'Online logo search is unavailable right now. Initials will be used; you can upload one.')}};
+  return ()=>{clearTimeout(tm);tm=setTimeout(run,700)}}
 function setupView(err=''){const w=shell();
   w.innerHTML=`<div style="min-height:100vh;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">${LEFT()}
-  <form id="sf" style="padding:clamp(24px,5vw,60px);display:flex;flex-direction:column;gap:12px;max-width:760px">
+  <form id="sf" style="padding:clamp(24px,5vw,64px);display:flex;flex-direction:column;justify-content:center;gap:14px;max-width:560px">
    <h1 style="font-size:30px;margin:0">Register your organization</h1>
-   <p class="note" style="margin:0">First-time setup. These details appear on reports, and you become the organization's administrator.</p>
    ${err?`<div class="callout">${esc(err)}</div>`:''}
-   <h3 style="margin:6px 0 0">Organization details</h3>${orgForm({})}
-   <h3 style="margin:0">Administrator account</h3><div class="form"><label class="f">Your full name *<input id="sa_n" required></label><label class="f">User name *<input id="sa_u" required autocomplete="username"></label><label class="f">Designation<input id="sa_d"></label><label class="f">Password (6+ characters) *<input id="sa_p" type="password" required autocomplete="new-password"></label><label class="f">Confirm password *<input id="sa_p2" type="password" required autocomplete="new-password"></label></div>
-   <button class="go" type="submit">Create organization and sign in</button>
-   ${CID()?'<p class="note">Already registered on another computer? <button type="button" id="sDrv">Load my organization from Google Drive</button></p>':''}
+   <label class="f">Organization name<input id="of_name" required autocomplete="organization" placeholder="e.g. IRCON International"></label>
+   <div style="display:flex;gap:14px;align-items:flex-start"><span id="of_lp">${orgLogoHTML({},64)}</span><div id="of_lg" style="flex:1"><div class="note" style="margin:0">The logo is found online from the organization name.</div></div></div>
+   <div class="form" style="margin:0"><label class="f">Your user name<input id="sa_u" required autocomplete="username"></label><label class="f">Password (6+ characters)<input id="sa_p" type="password" required autocomplete="new-password"></label></div>
+   <button class="go" type="submit">Create and sign in</button>
+   ${CID()?'<p class="note">Already registered on another computer? <button type="button" id="sDrv">Load from Google Drive</button></p>':''}
   </form></div>`;
-  bindLogo('of',{});
+  delete LOGO.of;const kick=logoPicker('of',()=>$('#of_name')?.value||'');$('#of_name').oninput=kick;
   $('#sDrv')&&($('#sDrv').onclick=async()=>{await driveConnect(true);if(DB.users.length&&DB.org)loginView('Organization loaded from Google Drive. Sign in to continue.')});
-  $('#sf').onsubmit=async e=>{e.preventDefault();const o=readOrg(),u=$('#sa_u').value.trim().toLowerCase(),pw=$('#sa_p').value;
-    if(!o.name||!o.code)return setupView('Enter the organization name and code.');if(pw.length<6)return setupView('Use a password of at least 6 characters.');if(pw!==$('#sa_p2').value)return setupView('The two passwords do not match.');
-    const salt=Math.random().toString(36).slice(2);const x={u,name:$('#sa_n').value.trim()||u,desig:$('#sa_d').value.trim(),role:'admin',salt,h:await hash(salt+pw)};
-    DB.org={...o,created:ds(Date.now())};DB.users=[x];ls('epcpm.org',o.code);save();enter(x);toast('Organization registered')}}
-function loginView(err=''){if(!DB.users.length||(!DB.org&&!DB.users.some(u=>!u.must)))return setupView(err);const w=shell();const oc=ls('epcpm.org')||DB.org?.code||'';
+  $('#sf').onsubmit=async e=>{e.preventDefault();const name=$('#of_name').value.trim(),u=$('#sa_u').value.trim().toLowerCase(),pw=$('#sa_p').value;
+    if(!name)return toast('Enter the organization name');if(!u)return toast('Enter a user name');if(pw.length<6)return toast('Use a password of at least 6 characters');
+    const salt=Math.random().toString(36).slice(2);const x={u,name:u,role:'admin',salt,h:await hash(salt+pw)};
+    const code=name.toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).map(w=>w[0]).join('').slice(0,8)||'ORG';
+    DB.org={name,code,logo:LOGO.of||'',created:ds(Date.now())};DB.users=[x];save();enter(x);toast('Organization registered')}}
+function loginView(err=''){if(!DB.users.length||(!DB.org&&!DB.users.some(u=>!u.must)))return setupView(err);const w=shell();
   w.innerHTML=`<div style="min-height:100vh;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">${LEFT()}
   <form id="lf" style="padding:clamp(28px,6vw,72px);display:flex;flex-direction:column;justify-content:center;gap:14px;max-width:480px">
    <h1 style="font-size:30px;margin:0">Sign in</h1>
    ${err?`<div class="callout">${esc(err)}</div>`:''}
-   <label class="f">Organization code<input id="lo_c" value="${esc(oc)}" autocapitalize="characters" required></label>
    <label class="f">User name<input id="lu" autocomplete="username" required></label>
    <label class="f">Password<input id="lp" type="password" autocomplete="current-password" required></label>
    <button class="go" type="submit">Sign in</button>
-   <p class="note">${DB.org?`Organization: <b>${esc(DB.org.name)}</b>. `:''}Ask your administrator for an account. ${CID()?'<button type="button" id="lDrv">Reload organization data from Google Drive</button>':''}</p>
+   <p class="note">Ask your administrator for an account. ${CID()?'<button type="button" id="lDrv">Reload from Google Drive</button>':''}</p>
   </form></div>`;
   $('#lDrv')&&($('#lDrv').onclick=async()=>{await driveConnect(true);loginView()});
-  $('#lf').onsubmit=async e=>{e.preventDefault();const c=$('#lo_c').value.trim().toUpperCase().replace(/\s+/g,''),u=$('#lu').value.trim().toLowerCase(),pw=$('#lp').value;
-    if(DB.org&&c!==DB.org.code)return loginView('That organization code is not registered here. Check the code, or reload the organization from Google Drive.');
+  $('#lf').onsubmit=async e=>{e.preventDefault();const u=$('#lu').value.trim().toLowerCase(),pw=$('#lp').value;
     const x=DB.users.find(z=>z.u===u);if(!x||x.h!==await hash(x.salt+pw))return loginView('User name or password is wrong.');
-    ls('epcpm.org',c);enter(x);if(!DB.org&&x.role==='admin'){location.hash='#users';toast('Please add your organization details')}}
+    enter(x);if(!DB.org&&x.role==='admin'){location.hash='#users';toast('Please add your organization name')}}
 }
 function logout(){ME=null;try{sessionStorage.removeItem('epcpm.me')}catch(e){}loginView()}
 

@@ -57,7 +57,7 @@ V.register.after=()=>{
 
 /* ---------- users ---------- */
 V.users=()=>{if(ME.role!=='admin')return hdr('Users')+'<p>Only administrators can manage users.</p><div class="card"><h3>Change my password</h3><div class="form"><label class="f">New password<input id="np1" type="password"></label></div><button class="go" id="cpw">Change password</button></div>';
-  return hdr('Organization & users')+`<div class="card"><h2 style="margin-top:0">Organization details</h2>${DB.org?'':'<div class="callout">Add your organization details. The organization code is asked for at sign-in.</div>'}${orgForm(DB.org||{},'uo')}<button class="go" id="orgS">Save organization</button></div>
+  return hdr('Organization & users')+`<div class="card"><h2 style="margin-top:0">Organization details</h2>${DB.org?'':'<div class="callout">Add your organization name. Its logo is found online.</div>'}${orgForm(DB.org||{},'uo')}<button class="go" id="orgS">Save organization</button></div>
   <h2>Users</h2><p class="note">Admin: everything, including projects and users. Planner: progress updates and schedule edits. Viewer: read-only reports. Accounts live in this browser.</p>
   <table><thead><tr><th>User name</th><th>Name</th><th>Designation</th><th>Role</th><th></th></tr></thead><tbody>${DB.users.map((u,i)=>`<tr><td>${esc(u.u)}</td><td>${esc(u.name)}</td><td>${esc(u.desig||'')}</td><td>${esc(u.role)}</td><td><button data-rp="${i}">Reset password</button> ${u.u!==ME.u?`<button data-du="${i}">Remove</button>`:''}</td></tr>`).join('')}</tbody></table>
   <div class="card" style="margin-top:16px"><h3>Add user</h3><div class="form"><label class="f">User name<input id="nu"></label><label class="f">Full name<input id="nn"></label><label class="f">Designation<input id="nd"></label><label class="f">Role<select id="nr"><option value="viewer">Viewer</option><option value="planner">Planner</option><option value="admin">Admin</option></select></label><label class="f">Password<input id="np" type="password"></label></div><button class="go" id="au">Add user</button></div>
@@ -66,8 +66,8 @@ V.users.after=()=>{
   const setPw=async(u,pw)=>{u.salt=Math.random().toString(36).slice(2);u.h=await hash(u.salt+pw);u.must=false;save()};
   $('#cpw').onclick=async()=>{const pw=$('#np1').value;if(pw.length<6)return toast('Use at least 6 characters');await setPw(DB.users.find(u=>u.u===ME.u),pw);toast('Password changed');$('#np1').value=''};
   if(ME.role!=='admin')return;
-  bindLogo('uo',DB.org);
-  $('#orgS').onclick=()=>{const o=readOrg('uo');if(!o.name||!o.code)return toast('Organization name and code are required');DB.org={...(DB.org||{}),...o};ls('epcpm.org',o.code);save();toast('Organization saved. Sign in with code '+o.code);route()};
+  delete LOGO.uo;bindLogo('uo',DB.org);{const k=logoPicker('uo',()=>$('#uo_name')?.value||'');const n=$('#uo_name');if(n&&k)n.oninput=k;}
+  $('#orgS').onclick=()=>{const o=readOrg('uo');if(!o.name)return toast('Organization name is required');DB.org={...(DB.org||{}),...o};save();toast('Organization saved');route()};
   $('#au').onclick=async()=>{const u=$('#nu').value.trim().toLowerCase(),pw=$('#np').value;if(!u||pw.length<6)return toast('Enter a user name and a password of 6+ characters');
     if(DB.users.some(x=>x.u===u))return toast('That user name exists');const x={u,name:$('#nn').value||u,desig:$('#nd').value,role:$('#nr').value};DB.users.push(x);await setPw(x,pw);route();toast('User added')};
   $$('[data-du]').forEach(b=>b.onclick=()=>{DB.users.splice(+b.dataset.du,1);save();route()});
