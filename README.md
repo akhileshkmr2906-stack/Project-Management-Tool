@@ -15,8 +15,10 @@ Live site: https://akhileshkmr2906-stack.github.io/Project-Management-Tool/
   admin on the Export page.
 - Project data is not stored in this repository.
 
-## Login
-First sign-in: `admin` / `admin123`, then change the password under Users. Login is enforced in the
+## Organization and login
+On first use the app asks for the organization's details (name, code, type, address, GSTIN, contact)
+and creates the administrator account. Users sign in with organization code, user name and password.
+Admins manage organization details and users under "Organization & users". Login is enforced in the
 browser only; it is not server-side security.
 
 ## Build

@@ -68,7 +68,7 @@ function driveConflict(){DRV.status='error';DRV.err='Changed on another computer
   dialog('Drive file changed elsewhere','<p>The data file in Google Drive was saved from another computer or browser after you loaded it. Choose which version to keep.</p>',
    [['Load the Drive version (discard my recent edits)',async()=>{$('#dlg').close();await driveLoad(DRV.fileId).catch(driveErr)}],['Keep mine (overwrite Drive)',()=>{$('#dlg').close();driveWrite(true).catch(driveErr)},'pri']])}
 function applyRemote(d){if(!d||!Array.isArray(d.projects)||!d.projects.length)throw new Error('The Drive file is not an EPC Project Controls data file');
-  const users=d.users?.length?d.users:DB.users;DB={projects:d.projects,active:d.projects.some(p=>p.id===DB.active)?DB.active:d.active,users};
+  const users=d.users?.length?d.users:DB.users;DB={projects:d.projects,active:d.projects.some(p=>p.id===DB.active)?DB.active:d.active,users,org:d.org||DB.org};
   for(const u of users)if(!DB.users.includes(u))DB.users.push(u);if(ME&&!DB.users.some(u=>u.u===ME.u)){const mine=JSON.parse(localStorage.getItem(KEY)||'{}').users?.find(u=>u.u===ME.u);if(mine)DB.users.push(mine)}
   CACHE=null;localSave()}
 async function driveLoad(id){const m=await (await gfetch(`${DAPI}/drive/v3/files/${id}?fields=id,modifiedTime`)).json();applyRemote(await driveRead(id));DRV.fileId=id;DRV.mod=m.modifiedTime;DRV.status='saved';DRV.at=Date.now();driveBadge();if(ME)route();toast('Loaded data from Google Drive')}
@@ -89,28 +89,49 @@ async function hash(s){
   try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
   catch(e){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return 'x'+(h>>>0).toString(16)}
 }
-async function ensureAdmin(){if(!DB.users.length){const salt=Math.random().toString(36).slice(2);DB.users.push({u:'admin',name:'Administrator',role:'admin',salt,h:await hash(salt+'admin123'),must:true});save()}}
-function loginView(err=''){
-  document.querySelector('.app').style.display='none';
-  let w=$('#login');if(!w){w=document.createElement('div');w.id='login';document.body.prepend(w)}
-  w.innerHTML=`<div style="min-height:100vh;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">
-  <div style="background:var(--rail);color:#e8eeeb;padding:clamp(28px,6vw,72px);display:flex;flex-direction:column;justify-content:center">
-   <div style="font-weight:800;font-size:clamp(32px,5vw,50px);line-height:1.05">EPC Project<br>Controls</div>
-   <p style="color:#9aa8a2;max-width:34ch;font-size:17px">Engineering, procurement and construction progress, S-curves, EVM, look-aheads and L0–L5 schedules in one place.</p>
-   <svg viewBox="0 0 320 150" style="max-width:420px;margin-top:20px" aria-hidden="true"><path d="M10 140 C90 138 120 120 160 70 S240 12 310 10" fill="none" stroke="#cfd8d4" stroke-width="3" stroke-dasharray="7 6"/><path d="M10 140 C90 139 130 128 170 95 S205 70 215 66" fill="none" stroke="#00a86b" stroke-width="5" stroke-linecap="round"/><circle cx="215" cy="66" r="7" fill="#ff5c8a"/></svg>
-  </div>
+async function ensureAdmin(){}
+const ORGF=[['name','Organization name',1],['code','Organization code (short, used to sign in)',1],['type','Organization type',0,['EPC contractor','Owner / client','PMC / consultant','Sub-contractor','Vendor','Other']],['address','Registered address'],['city','City'],['state','State'],['country','Country'],['gstin','GSTIN / tax ID'],['email','Contact email'],['phone','Contact phone'],['website','Website']];
+function orgForm(o={},pre='of'){return `<div class="form">${ORGF.map(([k,l,req,opts])=>opts?`<label class="f">${l}<select id="${pre}_${k}">${opts.map(x=>`<option ${o[k]===x?'selected':''}>${x}</option>`).join('')}</select></label>`:`<label class="f">${l}${req?' *':''}<input id="${pre}_${k}" value="${esc(o[k]||(k==='country'?'India':''))}" ${req?'required':''} ${k==='code'?'autocapitalize="characters" maxlength="16"':''} ${k==='email'?'type="email"':''}></label>`).join('')}</div>`}
+function readOrg(pre='of'){const o={};ORGF.forEach(([k])=>o[k]=($('#'+pre+'_'+k)?.value||'').trim());o.code=o.code.toUpperCase().replace(/\s+/g,'');return o}
+const LEFT=()=>`<div style="background:var(--rail);color:#e8eeeb;padding:clamp(28px,6vw,72px);display:flex;flex-direction:column;justify-content:center">
+   <div style="font-weight:800;font-size:clamp(32px,5vw,50px);line-height:1.05">${DB.org?.name?esc(DB.org.name):'EPC Project<br>Controls'}</div>
+   <p style="color:#9aa8a2;max-width:34ch;font-size:17px">${DB.org?.name?'EPC Project Controls · ':''}Engineering, procurement and construction progress, S-curves, EVM, look-aheads and L0–L5 schedules in one place.</p>
+   <svg viewBox="0 0 320 150" style="max-width:420px;margin-top:20px" aria-hidden="true"><path d="M10 140 C90 138 120 120 160 70 S240 12 310 10" fill="none" stroke="#cfd8d4" stroke-width="3" stroke-dasharray="7 6"/><path d="M10 140 C90 139 130 128 170 95 S205 70 215 66" fill="none" stroke="#00a86b" stroke-width="5" stroke-linecap="round"/><circle cx="215" cy="66" r="7" fill="#ff5c8a"/></svg></div>`;
+function shell(){document.querySelector('.app').style.display='none';let w=$('#login');if(!w){w=document.createElement('div');w.id='login';document.body.prepend(w)}return w}
+function enter(x){ME={u:x.u,name:x.name,role:x.role};try{sessionStorage.setItem('epcpm.me',JSON.stringify(ME))}catch(e){}
+  $('#login')?.remove();document.querySelector('.app').style.display='';route()}
+function setupView(err=''){const w=shell();
+  w.innerHTML=`<div style="min-height:100vh;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">${LEFT()}
+  <form id="sf" style="padding:clamp(24px,5vw,60px);display:flex;flex-direction:column;gap:12px;max-width:760px">
+   <h1 style="font-size:30px;margin:0">Register your organization</h1>
+   <p class="note" style="margin:0">First-time setup. These details appear on reports, and you become the organization's administrator.</p>
+   ${err?`<div class="callout">${esc(err)}</div>`:''}
+   <h3 style="margin:6px 0 0">Organization details</h3>${orgForm({})}
+   <h3 style="margin:0">Administrator account</h3><div class="form"><label class="f">Your full name *<input id="sa_n" required></label><label class="f">User name *<input id="sa_u" required autocomplete="username"></label><label class="f">Designation<input id="sa_d"></label><label class="f">Password (6+ characters) *<input id="sa_p" type="password" required autocomplete="new-password"></label><label class="f">Confirm password *<input id="sa_p2" type="password" required autocomplete="new-password"></label></div>
+   <button class="go" type="submit">Create organization and sign in</button>
+   ${CID()?'<p class="note">Already registered on another computer? <button type="button" id="sDrv">Load my organization from Google Drive</button></p>':''}
+  </form></div>`;
+  $('#sDrv')&&($('#sDrv').onclick=async()=>{await driveConnect(true);if(DB.users.length&&DB.org)loginView('Organization loaded from Google Drive. Sign in to continue.')});
+  $('#sf').onsubmit=async e=>{e.preventDefault();const o=readOrg(),u=$('#sa_u').value.trim().toLowerCase(),pw=$('#sa_p').value;
+    if(!o.name||!o.code)return setupView('Enter the organization name and code.');if(pw.length<6)return setupView('Use a password of at least 6 characters.');if(pw!==$('#sa_p2').value)return setupView('The two passwords do not match.');
+    const salt=Math.random().toString(36).slice(2);const x={u,name:$('#sa_n').value.trim()||u,desig:$('#sa_d').value.trim(),role:'admin',salt,h:await hash(salt+pw)};
+    DB.org={...o,created:ds(Date.now())};DB.users=[x];ls('epcpm.org',o.code);save();enter(x);toast('Organization registered')}}
+function loginView(err=''){if(!DB.users.length||(!DB.org&&!DB.users.some(u=>!u.must)))return setupView(err);const w=shell();const oc=ls('epcpm.org')||DB.org?.code||'';
+  w.innerHTML=`<div style="min-height:100vh;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">${LEFT()}
   <form id="lf" style="padding:clamp(28px,6vw,72px);display:flex;flex-direction:column;justify-content:center;gap:14px;max-width:480px">
    <h1 style="font-size:30px;margin:0">Sign in</h1>
    ${err?`<div class="callout">${esc(err)}</div>`:''}
+   <label class="f">Organization code<input id="lo_c" value="${esc(oc)}" autocapitalize="characters" required></label>
    <label class="f">User name<input id="lu" autocomplete="username" required></label>
    <label class="f">Password<input id="lp" type="password" autocomplete="current-password" required></label>
    <button class="go" type="submit">Sign in</button>
-   <p class="note">First use: sign in as <b>admin</b> with password <b>admin123</b>, then change it and add users under Projects → Users. Accounts are kept in this browser only.</p>
+   <p class="note">${DB.org?`Organization: <b>${esc(DB.org.name)}</b>. `:''}Ask your administrator for an account. ${CID()?'<button type="button" id="lDrv">Reload organization data from Google Drive</button>':''}</p>
   </form></div>`;
-  $('#lf').onsubmit=async e=>{e.preventDefault();const u=$('#lu').value.trim().toLowerCase(),pw=$('#lp').value;
+  $('#lDrv')&&($('#lDrv').onclick=async()=>{await driveConnect(true);loginView()});
+  $('#lf').onsubmit=async e=>{e.preventDefault();const c=$('#lo_c').value.trim().toUpperCase().replace(/\s+/g,''),u=$('#lu').value.trim().toLowerCase(),pw=$('#lp').value;
+    if(DB.org&&c!==DB.org.code)return loginView('That organization code is not registered here. Check the code, or reload the organization from Google Drive.');
     const x=DB.users.find(z=>z.u===u);if(!x||x.h!==await hash(x.salt+pw))return loginView('User name or password is wrong.');
-    ME={u:x.u,name:x.name,role:x.role};try{sessionStorage.setItem('epcpm.me',JSON.stringify(ME))}catch(e){}
-    w.remove();document.querySelector('.app').style.display='';if(x.must)location.hash='#users';route();if(x.must)toast('Please change the default admin password')}
+    ls('epcpm.org',c);enter(x);if(!DB.org&&x.role==='admin'){location.hash='#users';toast('Please add your organization details')}}
 }
 function logout(){ME=null;try{sessionStorage.removeItem('epcpm.me')}catch(e){}loginView()}
 
