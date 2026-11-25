@@ -1,7 +1,7 @@
 /* ============ page frame ============ */
 function hdr(title,sub=''){const p=P(),cx=C();
   return `<div class="top"><div><button class="menu-btn" id="mb">Menu</button><h1>${esc(title)}</h1><div class="meta">${DB.org?.name?esc(DB.org.name)+' · ':''}${esc(p.name)} · data date ${fD(p.dataDate)}${sub?' · '+sub:''}</div></div>
-  <div class="meta">${esc(ME.name)} (${esc(ME.role)}) · <a href="#" id="lo" style="color:inherit">Sign out</a></div></div>`}
+  <div class="prof">${orgLogoHTML(DB.org,44)}<div><b>${esc(DB.org?.name||'')}</b><div class="meta">${esc(ME.name)} · ${esc(ME.role)} · <a href="#" id="lo" style="color:inherit">Sign out</a></div></div></div></div>`}
 const V={};
 function kpi(v,l,cls=''){return `<div class="kpi ${cls}"><b>${v}</b><span>${esc(l)}</span></div>`}
 function fcFinishKPI(cx){const g=Math.round((cx.pEF-cx.target)/DAY);return kpi(fT(cx.pEF),`Forecast finish (${g>0?g+' days late':'on time'} vs ${fT(cx.target)})`,g>0?'bad':'good')}
@@ -66,6 +66,7 @@ V.users.after=()=>{
   const setPw=async(u,pw)=>{u.salt=Math.random().toString(36).slice(2);u.h=await hash(u.salt+pw);u.must=false;save()};
   $('#cpw').onclick=async()=>{const pw=$('#np1').value;if(pw.length<6)return toast('Use at least 6 characters');await setPw(DB.users.find(u=>u.u===ME.u),pw);toast('Password changed');$('#np1').value=''};
   if(ME.role!=='admin')return;
+  bindLogo('uo',DB.org);
   $('#orgS').onclick=()=>{const o=readOrg('uo');if(!o.name||!o.code)return toast('Organization name and code are required');DB.org={...(DB.org||{}),...o};ls('epcpm.org',o.code);save();toast('Organization saved. Sign in with code '+o.code);route()};
   $('#au').onclick=async()=>{const u=$('#nu').value.trim().toLowerCase(),pw=$('#np').value;if(!u||pw.length<6)return toast('Enter a user name and a password of 6+ characters');
     if(DB.users.some(x=>x.u===u))return toast('That user name exists');const x={u,name:$('#nn').value||u,desig:$('#nd').value,role:$('#nr').value};DB.users.push(x);await setPw(x,pw);route();toast('User added')};
