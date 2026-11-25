@@ -125,11 +125,11 @@ V.export.after=()=>{const p=P();driveBadge();
   $('#xReset')&&($('#xReset').onclick=()=>dialog('Reset all data',"<p>Replace every project with the starter project? Users are kept. If Google Drive is connected, the Drive file is overwritten too.</p>",[['Reset',()=>{DB.projects=[seed()];DB.active=DB.projects[0].id;save();$('#dlg').close();route()},'pri']]))};
 
 /* ============ router ============ */
-function route(){if(!ME)return loginView();charts.splice(0).forEach(r=>r.disconnect());
+function route(){if(!ME)return loginView();cleanStray();charts.splice(0).forEach(r=>r.disconnect());
   let v=(location.hash||'#overview').slice(1);if(!V[v])v='overview';
   $$('.rail a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+v));$('#railProj').textContent=P().name;
   const m=$('#main');try{m.innerHTML=V[v]();V[v].after&&V[v].after();m.querySelectorAll('table').forEach(t=>{if(!t.closest('.scroll')){const w=document.createElement('div');w.className='scroll';t.before(w);w.appendChild(t)}})}catch(e){console.error(e);m.innerHTML=`<div class="callout">This view hit an error: ${esc(e.message)}</div>`}
-  $('#lo')&&($('#lo').onclick=e=>{e.preventDefault();logout()});$('#mb')&&($('#mb').onclick=()=>$('#rail').classList.toggle('open'));$('#rail').classList.remove('open');window.scrollTo(0,0)}
+  $('#lo')&&($('#lo').onclick=e=>{e.preventDefault();logout()});$('#pSel')&&($('#pSel').onchange=e=>{DB.active=e.target.value;save();route()});$('#mb')&&($('#mb').onclick=()=>$('#rail').classList.toggle('open'));$('#rail').classList.remove('open');window.scrollTo(0,0)}
 window.addEventListener('hashchange',route);
 $('#drv').onclick=()=>{if(DRV.status==='error'&&DRV.fileId&&DRV.tok)return driveWrite().catch(driveErr);driveConnect(true)};
 (async()=>{load();await ensureAdmin();driveBadge();if(ls('epcpm.drive')==='1'&&CID())driveConnect(false);try{ME=JSON.parse(sessionStorage.getItem('epcpm.me'))}catch(e){ME=null}

@@ -9,7 +9,7 @@ const TPL={
   ['Instrumentation & control','Control room',90,40,15],['Electrical package','MCC room',90,40,12],['Insulation & painting','Process area',30,45,8]],
  'Blank: add your own packages':[['Package 1','Site',60,30,100]]};
 let AS=null;
-function asDefaults(){const p=P();return {target:'new',name:'New EPC project',code:'',po:p.dataDate||ds(Date.now()),del:addD(p.dataDate||ds(Date.now()),365),value:1000,
+function asDefaults(){const p=P();return {target:p.acts.length?'new':'cur',name:'',code:'',po:p.dataDate||ds(Date.now()),del:addD(p.dataDate||ds(Date.now()),365),value:1000,
   split:{E:5,P:65,C:30},tpl:Object.keys(TPL)[0],pk:TPL[Object.keys(TPL)[0]].map(r=>r.slice()),fit:true,minPct:50,overlap:false,
   d:{kick:7,basic:30,spec:20,enq:30,dwg:15,appr:21,transit:15,mob:15,test:15,comm:15,hand:7}}}
 function asBuild(o){// returns {acts, info}
@@ -73,7 +73,7 @@ V.autoschedule.after=()=>{const o=AS;
   $('#asAdd').onclick=()=>{o.pk.push(['New package','Site',60,30,10]);route()};
   $('#asT').onchange=e=>{o.tpl=e.target.value;o.pk=TPL[o.tpl].map(r=>r.slice());route()};
   $('#asGo')&&($('#asGo').onclick=()=>{
-    if(!o.po||!o.del||td(o.del)<=td(o.po))return toast('Delivery date must be after the PO date');if(!o.pk.length)return toast('Add at least one package');
+    if(!o.po||!o.del||td(o.del)<=td(o.po))return toast('Delivery date must be after the PO date');if(!o.pk.length)return toast('Add at least one package');if(o.target==='new'&&!String(o.name||'').trim())return toast('Enter the project name');
     const acts=asBuild(o),r=asSchedule(o,acts);let p;
     if(o.target==='cur'){p=P();p.acts=acts;p.snaps=[];Object.assign(p,{start:o.po,finish:o.del,cdd:o.del,dataDate:o.po,poDate:o.po})}
     else{p={id:'p'+Date.now().toString(36),name:o.name||'New EPC project',code:o.code||'',client:'',consultant:'',location:'',currency:P().currency||'INR lakh',contractValue:+o.value||0,

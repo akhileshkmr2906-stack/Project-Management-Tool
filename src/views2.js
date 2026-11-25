@@ -49,15 +49,15 @@ function editAct(id){const p=P();const a=id?p.acts.find(x=>x.id===id):{id:'',d:S
 
 /* ---------- engineering ---------- */
 V.engineering=()=>{const p=P(),cx=C(),A=p.acts.filter(a=>a.d==='E'),x=cx.disc.E;
-  const cats=[...new Set(A.map(a=>a.l3))];const st=a=>a.status||(a.pct>=1?'Approved':a.pct>0?'First Submission':'Not Started');
+  const cats=[...new Set(A.map(a=>a.l3))];const st=a=>a.status||(a.pct>=1?'Approved':a.pct>0?'First Submission':'Not Started');const ESTS=[...new Set([...ENG_ST.filter(s=>A.some(a=>st(a)===s)),...A.map(st)])];
   const over=A.filter(a=>a.pct<1&&td(a.pf)<cx.d0).map(a=>({a,dl:dd(p.dataDate,a.pf)})).sort((u,v)=>v.dl-u.dl);
   const subDue=A.filter(a=>a.steps&&a.steps[0][1]&&td(a.steps[0][1])<=cx.d0).length,subDone=A.filter(a=>a.steps&&a.steps[0][2]).length;
   return hdr('Engineering status')+`
   <div class="kpis">${kpi(A.length,'Drawings / documents')}${kpi(A.filter(a=>a.pct>=1).length,'Approved','good')}${kpi(A.filter(a=>a.pct>0&&a.pct<1).length,'Under review')}${kpi(A.filter(a=>!a.pct).length,'Not started')}
   ${kpi(pc(x.plan)+' / '+pc(x.act),'Planned / actual progress',x.act<x.plan?'bad':'good')}${kpi(over.length,'Approvals overdue',over.length?'bad':'good')}</div>
-  <div class="grid2"><div><h2>Status of engineering by document category</h2><div class="scroll"><table><thead><tr><th>Category</th>${ENG_ST.map(s=>`<th class="n">${s}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>
-   ${cats.map(c=>{const B=A.filter(a=>a.l3===c);return `<tr><td>${esc(c)}</td>${ENG_ST.map(s=>`<td class="n">${B.filter(a=>st(a)===s).length||''}</td>`).join('')}<td class="n"><b>${B.length}</b></td></tr>`}).join('')}
-   <tr class="l0"><td>Total</td>${ENG_ST.map(s=>`<td class="n">${A.filter(a=>st(a)===s).length}</td>`).join('')}<td class="n">${A.length}</td></tr></tbody></table></div>
+  <div class="grid2"><div><h2>Status of engineering by document category</h2><div class="scroll"><table><thead><tr><th>Category</th>${ESTS.map(s=>`<th class="n">${s}</th>`).join('')}<th class="n">Total</th></tr></thead><tbody>
+   ${cats.map(c=>{const B=A.filter(a=>a.l3===c);return `<tr><td>${esc(c)}</td>${ESTS.map(s=>`<td class="n">${B.filter(a=>st(a)===s).length||''}</td>`).join('')}<td class="n"><b>${B.length}</b></td></tr>`}).join('')}
+   <tr class="l0"><td>Total</td>${ESTS.map(s=>`<td class="n">${A.filter(a=>st(a)===s).length}</td>`).join('')}<td class="n">${A.length}</td></tr></tbody></table></div>
    <h3>Performance indices</h3><table><tbody>
    <tr><td>First submissions due by data date / made</td><td class="n">${subDue} / ${subDone}</td></tr>
    <tr><td>Approval ratio (approved ÷ submitted)</td><td class="n">${pc(A.filter(a=>a.pct>=1).length/(subDone||1),0)}</td></tr>
